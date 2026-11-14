@@ -55,9 +55,9 @@ Three sources push colored particles into a vessel, the particles mix, and the m
 
 Four wells draw from one sand and gravel aquifer above bedrock. Each pump sends its water through its own pipe, past a flow meter, into a pool on the right.
 
-- Wells 1 and 2 (left) are deep, wells 3 and 4 are shallow. Wells 1 and 3 have low-capacity pumps (up to 4 L/s), wells 2 and 4 high-capacity ones (up to 10 L/s).
+- Wells 1 and 2 (left) are deep, wells 3 and 4 are shallow. Wells 1 and 3 have high-capacity pumps (up to 10 L/s), wells 2 and 4 low-capacity ones (up to 4 L/s). Every pipe pours out at the same speed, so the higher pipes land further into the pool and the streams don't cross.
 - The Water table slider (in the ground, below the flow meters) sets a target level, 0 to 100%. The water table moves toward it slowly (about 63% of the way every 4 seconds).
 - Each well has a 50px intake screen. A pump runs at full rate while the water near its well is above the screen, slows as the water drops past the screen, and runs dry below it.
 - A running pump pulls the water table down around its well, 3px per L/s, so a high-capacity pump starts losing flow at a higher water table than a low-capacity one at the same depth.
 - Flow shows as dots in each pipe (2.4 dots/s per L/s at a constant speed, so tighter spacing means more flow), an inline flow meter, and the width of the stream pouring into the pool.
-- The pool holds 220 L and drains at 34 L/s × how full it is, so it settles at (total pumped ÷ 34): about 82% with all four pumps at full rate.
+- The pool is dug about halfway into the ground and drains through a pipe that runs off the page. It holds 220 L and drains at 34 L/s × how full it is, so it settles at (total pumped ÷ 34): about 82% with all four pumps at full rate.

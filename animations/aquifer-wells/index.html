@@ -224,7 +224,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   </div>
   <p class="rotate-hint">Turn your phone sideways to see the full diagram and use its controls.</p>
 
-  <div class="stage" id="stage"><canvas id="cv" width="1280" height="720" aria-label="Cross-section of the ground. A sand and gravel aquifer holds water up to the water table. Four wells go down into it: two deep wells on the left and two shallow wells to their right, each with a low-capacity or high-capacity pump. Each pump sends its water through a pipe with a flow meter that pours into a pool on the right, and the pool drains slowly out of its far side."></canvas>
+  <div class="stage" id="stage"><canvas id="cv" width="1280" height="720" aria-label="Cross-section of the ground. A sand and gravel aquifer holds water up to the water table. Four wells go down into it: two deep wells on the left and two shallow wells to their right, each with a low-capacity or high-capacity pump. Each pump sends its water through a pipe with a flow meter that pours into a pool dug half into the ground on the right, and the pool drains slowly through a pipe that runs off the page."></canvas>
     <!-- Controls laid over the diagram, positioned in diagram coordinates (1280 x 720) -->
     <div class="hud" id="hud">
       <div class="chip level-chip" style="left: 620px; top: 296px; width: 220px;">
@@ -234,19 +234,19 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
       </div>
       <!-- pump chips sit in the bedrock band, under their wells (left = well x - 70) -->
       <div class="chip pump-chip" style="left: 35px; bottom: 6px;">
-        <div class="chip-row"><span class="lbl"><span class="num">1</span><span>Deep<small>Low capacity</small></span></span><button type="button" class="switch" id="sw0" aria-pressed="true" aria-label="Pump 1, deep low-capacity">On</button></div>
+        <div class="chip-row"><span class="lbl"><span class="num">1</span><span>Deep<small>High capacity</small></span></span><button type="button" class="switch" id="sw0" aria-pressed="true" aria-label="Pump 1, deep high-capacity">On</button></div>
         <span class="pump-status" id="st0"></span>
       </div>
       <div class="chip pump-chip" style="left: 175px; bottom: 6px;">
-        <div class="chip-row"><span class="lbl"><span class="num">2</span><span>Deep<small>High capacity</small></span></span><button type="button" class="switch" id="sw1" aria-pressed="true" aria-label="Pump 2, deep high-capacity">On</button></div>
+        <div class="chip-row"><span class="lbl"><span class="num">2</span><span>Deep<small>Low capacity</small></span></span><button type="button" class="switch" id="sw1" aria-pressed="true" aria-label="Pump 2, deep low-capacity">On</button></div>
         <span class="pump-status" id="st1"></span>
       </div>
       <div class="chip pump-chip" style="left: 315px; bottom: 6px;">
-        <div class="chip-row"><span class="lbl"><span class="num">3</span><span>Shallow<small>Low capacity</small></span></span><button type="button" class="switch" id="sw2" aria-pressed="true" aria-label="Pump 3, shallow low-capacity">On</button></div>
+        <div class="chip-row"><span class="lbl"><span class="num">3</span><span>Shallow<small>High capacity</small></span></span><button type="button" class="switch" id="sw2" aria-pressed="true" aria-label="Pump 3, shallow high-capacity">On</button></div>
         <span class="pump-status" id="st2"></span>
       </div>
       <div class="chip pump-chip" style="left: 455px; bottom: 6px;">
-        <div class="chip-row"><span class="lbl"><span class="num">4</span><span>Shallow<small>High capacity</small></span></span><button type="button" class="switch" id="sw3" aria-pressed="true" aria-label="Pump 4, shallow high-capacity">On</button></div>
+        <div class="chip-row"><span class="lbl"><span class="num">4</span><span>Shallow<small>Low capacity</small></span></span><button type="button" class="switch" id="sw3" aria-pressed="true" aria-label="Pump 4, shallow low-capacity">On</button></div>
         <span class="pump-status" id="st3"></span>
       </div>
     </div>
@@ -388,17 +388,19 @@ window.Analog = (() => {
   const PIPE_END = 860;          // outlet pipes end here and pour into the pool
   const METER_X = 650;           // inline flow meters
   // Pool on the ground at the right; drains through its far wall at a rate that rises with its level
-  const POOL = { x0: 900, x1: 1232, top: 176, bottom: 266 };
+  const POOL = { x0: 900, x1: 1232, top: 224, bottom: 316 };   // about half below the ground at 270
   const POOL_VOL = 220;          // litres when full
   const DRAIN_FULL = 34;         // L/s draining when full: all four pumps (28 L/s) settle it near 82%
   const DRAIN_Y = POOL.bottom - 14;
+  const JET_SPEED = 230;         // px/s leaving each pipe end
 
   // The four wells. bottom = bottom of the intake screen.
   const wells = [
-    { x: 100, deep: true,  cap: 4,  row: 40,  name: 'Deep, low capacity' },
-    { x: 240, deep: true,  cap: 10, row: 82,  name: 'Deep, high capacity' },
-    { x: 380, deep: false, cap: 4,  row: 124, name: 'Shallow, low capacity' },
-    { x: 520, deep: false, cap: 10, row: 166, name: 'Shallow, high capacity' },
+    // high-capacity well first in each pair: its pipe runs higher and its stream reaches further, so streams don't cross
+    { x: 100, deep: true,  cap: 10, row: 40,  name: 'Deep, high capacity' },
+    { x: 240, deep: true,  cap: 4,  row: 82,  name: 'Deep, low capacity' },
+    { x: 380, deep: false, cap: 10, row: 124, name: 'Shallow, high capacity' },
+    { x: 520, deep: false, cap: 4,  row: 166, name: 'Shallow, low capacity' },
   ];
   const PUMP_TOP = 222;
   for (const w of wells) {
@@ -496,8 +498,8 @@ window.Analog = (() => {
         d.s += SPEED * dt;
         if (d.s >= w.len) {
           w.dots.splice(k, 1);
-          // pour out: faster and flatter for bigger flows, a dribble for low ones
-          const sp = 110 + 22 * w.flow + Math.random() * 30;
+          // pour out at the same speed from every pipe, so higher pipes land further out and streams don't cross
+          const sp = JET_SPEED + Math.random() * 20;
           jets.push({ x: PIPE_END, y: w.row + d.off, vx: sp, vy: (Math.random() - 0.3) * 20, w });
         }
       }
@@ -685,7 +687,7 @@ window.Analog = (() => {
     // Outflow: a stream whose width follows the flow, plus the dots themselves
     for (const w of wells) {
       if (w.flow > 0.05) {
-        const sp = 110 + 22 * w.flow + 15, g = 520;
+        const sp = JET_SPEED + 10, g = 520;
         ctx.beginPath();
         for (let t = 0; t <= 0.9; t += 0.03) {
           const x = PIPE_END + sp * t, y = w.row + 0.5 * g * t * t;
@@ -738,9 +740,11 @@ window.Analog = (() => {
 
   function drawPool() {
     const { x0, x1, top, bottom } = POOL, sy = poolSurface(), t = performance.now() / 1000;
-    // drain pipe through the far wall
-    ctx.strokeStyle = colors.line; ctx.lineWidth = 20; ctx.beginPath(); ctx.moveTo(x1, DRAIN_Y); ctx.lineTo(W, DRAIN_Y); ctx.stroke();
-    ctx.strokeStyle = colors.vessel; ctx.lineWidth = 13; ctx.stroke();
+    // dug-out pit: clear the ground inside the pool walls
+    ctx.fillStyle = colors.panel; ctx.fillRect(x0, top, x1 - x0, bottom - top + 2);
+    // drain pipe from the low corner, through the far wall and off the page
+    ctx.strokeStyle = colors['steel-dark']; ctx.lineWidth = 20; ctx.beginPath(); ctx.moveTo(x1 - 2, DRAIN_Y); ctx.lineTo(W + 4, DRAIN_Y); ctx.stroke();
+    ctx.strokeStyle = colors.vessel; ctx.lineWidth = 14; ctx.stroke();
     for (const d of drainDots) dot(d.x, DRAIN_Y + d.off * 0.4, colors.water, 3.5);
     // water, with a gentle wave that's livelier the more is pouring in
     const inflow = wells.reduce((a, w) => a + w.flow, 0), amp = 1 + inflow * 0.08;
@@ -757,6 +761,8 @@ window.Analog = (() => {
     // walls
     ctx.strokeStyle = colors['steel-dark']; ctx.lineWidth = 6; ctx.lineJoin = 'round';
     ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x0, bottom + 2); ctx.lineTo(x1, bottom + 2); ctx.lineTo(x1, top); ctx.stroke();
+    ctx.fillStyle = colors.muted; ctx.font = '600 12px "Barlow Condensed", sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('DRAIN', W - 8, DRAIN_Y + 24);
     ctx.lineJoin = 'miter';
     ctx.fillStyle = colors.fg; ctx.font = '600 14px "Barlow Condensed", sans-serif'; ctx.textAlign = 'right';
     ctx.fillText('POOL ' + Math.round(pool * 100) + '% FULL', x1, top - 28);
