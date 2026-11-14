@@ -133,9 +133,17 @@
   const POOL_VOL = 400;          // litres when full
   const DRAIN_FULL = 34;         // L/s draining when full: all four pumps (28 L/s) settle it near 82%
   const DRAIN_Y = POOL.bottom - 22;
-  const DRAIN_END = POOL.x1 + 80;  // the drain pipe runs out this far, then up to its own fountain nozzle
-  const DRAIN_NOZZLE = 206;        // the drain fountain sprays from here onto the ground
-  const DRAIN_FOUNTAIN = 3.6;      // drain fountain height, px per L/s
+  const DRAIN_END = POOL.x1 + 40;  // the drain pipe runs out this far, then angles up at 45 degrees
+  const DRAIN_RISE = 40;           // length of the 45 degree section, each way
+  const NOZ = { x: DRAIN_END + DRAIN_RISE, y: POOL.bottom - 22 - DRAIN_RISE };   // drain nozzle
+  const DRAIN_SPRAY = 6.5;         // spray speed squared per L/s, over gravity: sets how far it throws
+  // launch speed and where the middle of the spray lands, for a given drain rate
+  const sprayV = q => Math.sqrt(G * DRAIN_SPRAY * q);
+  function sprayLandX(q) {
+    const v = sprayV(q) * Math.SQRT1_2, h = GROUND - 2 - NOZ.y;
+    const t = (v + Math.sqrt(v * v + 2 * G * h)) / G;
+    return NOZ.x + v * t;
+  }
   const NOZZLE_Y = 126;          // fountain nozzles, above the pool rim
   const METER_Y = 150;           // flow meter on each riser
   const G = 520;                 // gravity for the fountain drops, px/s^2
@@ -267,14 +275,14 @@
       const d = drainDots[k];
       if (d.phase === 'pipe') {
         d.x += 120 * dt;
-        if (d.x >= DRAIN_END) { d.x = DRAIN_END; d.phase = 'riser'; }
+        if (d.x >= DRAIN_END) { d.phase = 'riser'; }
       } else if (d.phase === 'riser') {
-        d.y -= 120 * dt;
-        if (d.y <= DRAIN_NOZZLE) {
-          // spray up and out; not true to the pool's pressure, just a show of how much is draining
-          d.phase = 'fall'; d.y = DRAIN_NOZZLE;
-          d.vy = -Math.sqrt(2 * G * DRAIN_FOUNTAIN * drain) * (0.88 + Math.random() * 0.14);
-          d.vx = 12 + (Math.random() - 0.3) * (30 + 2.2 * drain);
+        d.x += 85 * dt; d.y -= 85 * dt;   // up the 45 degree section
+        if (d.y <= NOZ.y) {
+          // sprays out at about 45 degrees; not true to the pool's pressure, just a show of how much is draining
+          d.phase = 'fall'; d.x = NOZ.x; d.y = NOZ.y;
+          const v = sprayV(drain) * (0.9 + Math.random() * 0.14), a = Math.PI / 4 + (Math.random() - 0.5) * 0.25;
+          d.vx = v * Math.cos(a); d.vy = -v * Math.sin(a);
         }
       } else if (d.phase === 'fall') {
         d.vy += G * dt; d.x += d.vx * dt; d.y += d.vy * dt;
@@ -498,24 +506,28 @@
     // wet patch where the spray lands, bigger the more is draining
     if (drain > 0.05) {
       ctx.fillStyle = colors.soil; ctx.globalAlpha = 0.5 + 0.4 * q;
-      ctx.beginPath(); ctx.ellipse(DRAIN_END + 40, GROUND + 1, 30 + 60 * q, 3 + 4 * q, 0, 0, Math.PI * 2); ctx.fill();
+      const lx = sprayLandX(drain);
+      ctx.beginPath(); ctx.ellipse(lx, GROUND + 1, 20 + 40 * q, 3 + 4 * q, 0, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = colors.water; ctx.globalAlpha = 0.45 + 0.35 * q;
-      ctx.beginPath(); ctx.ellipse(DRAIN_END + 40, GROUND - 1, 18 + 50 * q, 1.5 + 2.5 * q, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(lx, GROUND - 1, 12 + 32 * q, 1.5 + 2.5 * q, 0, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
     if (drain > 0.05) {
       ctx.strokeStyle = colors.water; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       // the drain fountain's column
       ctx.globalAlpha = 0.25; ctx.lineWidth = 3 + 9 * q;
-      ctx.beginPath(); ctx.moveTo(DRAIN_END, DRAIN_NOZZLE); ctx.lineTo(DRAIN_END, DRAIN_NOZZLE - DRAIN_FOUNTAIN * drain * 0.9); ctx.stroke();
+      ctx.beginPath();
+      { const v = sprayV(drain) * 0.97 * Math.SQRT1_2;
+        for (let t = 0; t < 3; t += 0.02) { const x = NOZ.x + v * t, y = NOZ.y - v * t + 0.5 * G * t * t; t ? ctx.lineTo(x, y) : ctx.moveTo(x, y); if (y > GROUND - 2) break; } }
+      ctx.stroke();
       ctx.globalAlpha = 1; ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
     }
     // drain pipe out of the side wall, then up to its fountain nozzle
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = colors['steel-dark']; ctx.lineWidth = 20; ctx.beginPath(); ctx.moveTo(POOL.x1 - 2, DRAIN_Y); ctx.lineTo(DRAIN_END, DRAIN_Y); ctx.lineTo(DRAIN_END, DRAIN_NOZZLE); ctx.stroke();
+    ctx.strokeStyle = colors['steel-dark']; ctx.lineWidth = 20; ctx.beginPath(); ctx.moveTo(POOL.x1 - 2, DRAIN_Y); ctx.lineTo(DRAIN_END, DRAIN_Y); ctx.lineTo(NOZ.x, NOZ.y); ctx.stroke();
     ctx.strokeStyle = colors.vessel; ctx.lineWidth = 14; ctx.stroke();
     ctx.lineJoin = 'miter';
-    ctx.fillStyle = colors['steel-dark']; ctx.fillRect(DRAIN_END - 13, DRAIN_NOZZLE - 3, 26, 6);
+    ctx.save(); ctx.translate(NOZ.x, NOZ.y); ctx.rotate(Math.PI / 4); ctx.fillStyle = colors['steel-dark']; ctx.fillRect(-13, -3, 26, 6); ctx.restore();
     for (const d of drainDots) {
       if (d.phase === 'soak') {
         ctx.globalAlpha = Math.max(0, 1 - d.t / 0.6);
