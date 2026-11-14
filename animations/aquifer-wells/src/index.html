@@ -73,7 +73,7 @@
   </div>
   <p class="rotate-hint">Turn your phone sideways to see the full diagram and use its controls.</p>
 
-  <div class="stage" id="stage"><canvas id="cv" width="1280" height="720" aria-label="Cross-section of the ground. A sand and gravel aquifer holds water up to the water table. Four wells go down into it: two deep wells on the left and two shallow wells to their right, each with a low-capacity or high-capacity pump. The pumps sit in a large pool on the ground. Each one sends its water up past a flow meter and out of the top like a fountain, and the pool drains slowly through a pipe in its side that sprays up out of its own fountain onto the ground, where the water spreads out in small channels like a river delta."></canvas>
+  <div class="stage" id="stage"><canvas id="cv" width="1280" height="720" aria-label="Cross-section of the ground. A sand and gravel aquifer holds water up to the water table. Four wells go down into it: two deep wells on the left and two shallow wells to their right, each with a low-capacity or high-capacity pump. The pumps sit in a large pool on the ground. Each one sends its water up past a flow meter and out of the top like a fountain, and the pool drains slowly through a pipe in its side that sprays up out of its own fountain onto the ground, where it soaks in."></canvas>
     <!-- Controls laid over the diagram, positioned in diagram coordinates (1280 x 720) -->
     <div class="hud" id="hud">
       <div class="chip level-chip" style="left: 880px; top: 296px; width: 200px;">
@@ -136,20 +136,6 @@
   const DRAIN_END = POOL.x1 + 80;  // the drain pipe runs out this far, then up to its own fountain nozzle
   const DRAIN_NOZZLE = 206;        // the drain fountain sprays from here onto the ground
   const DRAIN_FOUNTAIN = 3.6;      // drain fountain height, px per L/s
-  // Channels the spilled water spreads along across the ground, like a small river delta
-  const DELTA = [
-    [[1040, 269], [1090, 269], [1135, 265], [1205, 262], [1284, 259]],
-    [[1040, 269], [1090, 269], [1135, 265], [1205, 268], [1284, 267]],
-    [[1040, 269], [1090, 269], [1135, 274], [1205, 274], [1284, 276]],
-    [[1040, 269], [1090, 269], [1135, 274], [1205, 280], [1284, 285]],
-  ].map(pts => {
-    const segs = []; let L = 0;
-    for (let k = 1; k < pts.length; k++) {
-      const [x0, y0] = pts[k - 1], [x1, y1] = pts[k], len = Math.hypot(x1 - x0, y1 - y0);
-      segs.push({ x0, y0, dx: (x1 - x0) / len, dy: (y1 - y0) / len, s0: L, len }); L += len;
-    }
-    return { pts, segs, len: L };
-  });
   const NOZZLE_Y = 126;          // fountain nozzles, above the pool rim
   const METER_Y = 150;           // flow meter on each riser
   const G = 520;                 // gravity for the fountain drops, px/s^2
@@ -292,10 +278,11 @@
         }
       } else if (d.phase === 'fall') {
         d.vy += G * dt; d.x += d.vx * dt; d.y += d.vy * dt;
-        if (d.vy > 0 && d.y >= GROUND - 1) { d.phase = 'delta'; d.route = DELTA[Math.floor(Math.random() * DELTA.length)]; d.s = Math.max(0, d.x - 1040); if (d.s >= d.route.len) drainDots.splice(k, 1); }
+        if (d.vy > 0 && d.y >= GROUND - 2) { d.phase = 'soak'; d.y = GROUND - 2; d.t = 0; d.vx *= 0.3; }
       } else {
-        d.s += 75 * dt;
-        if (d.s >= d.route.len) drainDots.splice(k, 1);
+        // splashes on the ground and soaks in
+        d.t += dt; d.x += d.vx * dt;
+        if (d.t > 0.6) drainDots.splice(k, 1);
       }
     }
 
@@ -508,18 +495,16 @@
 
   function drawPoolBack() {
     const q = Math.min(1, drain / DRAIN_FULL);
-    // wet ground fanning out where the drain water spreads
-    ctx.fillStyle = colors.soil; ctx.globalAlpha = 0.35 + 0.4 * q;
-    ctx.beginPath(); ctx.moveTo(1010, 267.5); ctx.lineTo(W, 255); ctx.lineTo(W, 289); ctx.lineTo(1010, 271); ctx.closePath(); ctx.fill();
-    ctx.globalAlpha = 1;
-    // sand bars between the channels
-    ctx.fillStyle = colors.sand;
-    for (const [x, y, rx] of [[1172, 269.5, 30], [1246, 264, 32], [1246, 279, 32]]) { ctx.beginPath(); ctx.ellipse(x, y, rx, 2.6, 0, 0, Math.PI * 2); ctx.fill(); }
-    // delta channels, wider and brighter the more is draining
+    // wet patch where the spray lands, bigger the more is draining
+    if (drain > 0.05) {
+      ctx.fillStyle = colors.soil; ctx.globalAlpha = 0.5 + 0.4 * q;
+      ctx.beginPath(); ctx.ellipse(DRAIN_END + 40, GROUND + 1, 30 + 60 * q, 3 + 4 * q, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = colors.water; ctx.globalAlpha = 0.45 + 0.35 * q;
+      ctx.beginPath(); ctx.ellipse(DRAIN_END + 40, GROUND - 1, 18 + 50 * q, 1.5 + 2.5 * q, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
     if (drain > 0.05) {
       ctx.strokeStyle = colors.water; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-      ctx.globalAlpha = 0.5 + 0.4 * q; ctx.lineWidth = 1.2 + 2.6 * q;
-      for (const r of DELTA) { ctx.beginPath(); r.pts.forEach(([x, y], k) => k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); }
       // the drain fountain's column
       ctx.globalAlpha = 0.25; ctx.lineWidth = 3 + 9 * q;
       ctx.beginPath(); ctx.moveTo(DRAIN_END, DRAIN_NOZZLE); ctx.lineTo(DRAIN_END, DRAIN_NOZZLE - DRAIN_FOUNTAIN * drain * 0.9); ctx.stroke();
@@ -532,12 +517,9 @@
     ctx.lineJoin = 'miter';
     ctx.fillStyle = colors['steel-dark']; ctx.fillRect(DRAIN_END - 13, DRAIN_NOZZLE - 3, 26, 6);
     for (const d of drainDots) {
-      if (d.phase === 'delta') {
-        let g = d.route.segs[d.route.segs.length - 1];
-        for (const sg of d.route.segs) if (d.s <= sg.s0 + sg.len) { g = sg; break; }
-        const t = d.s - g.s0;
-        ctx.globalAlpha = Math.max(0, 1 - d.s / d.route.len);
-        dot(g.x0 + g.dx * t, g.y0 + g.dy * t, colors.water, 2.6);
+      if (d.phase === 'soak') {
+        ctx.globalAlpha = Math.max(0, 1 - d.t / 0.6);
+        dot(d.x, d.y, colors.water, 2.8);
         ctx.globalAlpha = 1;
       } else dot(d.x, d.y, colors.water, 3.5);
     }
@@ -564,7 +546,6 @@
     ctx.lineJoin = 'miter';
     ctx.fillStyle = colors.muted; ctx.font = '600 12px "Barlow Condensed", sans-serif'; ctx.textAlign = 'left';
     ctx.fillText('DRAIN', x1 + 8, DRAIN_Y - 14);
-    ctx.fillText('RUNOFF', 1180, GROUND - 14);
     ctx.fillStyle = colors.fg; ctx.font = '600 14px "Barlow Condensed", sans-serif'; ctx.textAlign = 'right';
     ctx.fillText('POOL ' + Math.round(pool * 100) + '% FULL', W - 14, 34);
     ctx.fillStyle = colors.water; ctx.font = '500 13px "IBM Plex Mono", monospace';
