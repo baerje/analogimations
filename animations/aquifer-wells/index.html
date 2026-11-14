@@ -170,12 +170,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .chip .lbl { font-family: var(--font-display); font-weight: 500; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
 .chip .sub-val { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 /* Pump chips: name, on/off switch, live status. They sit in the bedrock band under their wells. */
-.pump-chip { width: 140px; padding: 6px 8px; gap: 3px; transform: scale(min(var(--boost, 1), 1.07)); transform-origin: bottom left; }
+.pump-chip { width: 134px; padding: 6px 8px; gap: 3px; transform: scale(min(var(--boost, 1), 1.07)); transform-origin: bottom left; }
 .pump-chip .chip-row { align-items: center; }
-.pump-chip .lbl { font-size: 12.5px; line-height: 1.1; min-width: 0; }
+.pump-chip .lbl { font-size: 14px; line-height: 1.1; min-width: 0; align-items: flex-start; }
+.pump-chip .lbl small { display: block; font-size: 11.5px; color: var(--muted); letter-spacing: 0.02em; white-space: nowrap; }
 .pump-chip .num { font-family: var(--font-mono); font-weight: 500; margin-right: 2px; }
 .switch {
-  font-size: 13px; padding: 3px 0; width: 46px; border-radius: 999px; flex: none;
+  font-size: 13px; padding: 3px 0; width: 40px; border-radius: 999px; flex: none;
   background: var(--panel); color: var(--muted); border-color: var(--line);
 }
 .switch[aria-pressed="true"] { background: var(--water); color: #fff; border-color: var(--water); }
@@ -190,11 +191,12 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   <header>
     <div>
       <h1>Aquifer Wells</h1>
-      <p class="sub">Four wells draw from the same underground aquifer. Two are shallow and two are deep, each with a small or a large pump. Raise or lower the water table and watch it settle slowly to the new level. A well only delivers water while the water table is above its intake, and a running pump pulls the water down around its own well.</p>
+      <p class="sub">Four wells draw from the same underground aquifer. Two are shallow and two are deep, each with a low-capacity or a high-capacity pump. Raise or lower the water table and watch it settle slowly to the new level. A well only delivers water while the water table is above its intake, and a running pump pulls the water down around its own well.</p>
     </div>
     <div class="readout" aria-live="off">
       <div><span>Water table</span><b id="rLevel">0%</b></div>
       <div><span>Total pumped</span><b id="rTotal">0.0 L/s</b></div>
+      <div><span>Pool</span><b id="rPool">0%</b></div>
     </div>
   </header>
 
@@ -222,36 +224,36 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   </div>
   <p class="rotate-hint">Turn your phone sideways to see the full diagram and use its controls.</p>
 
-  <div class="stage" id="stage"><canvas id="cv" width="1280" height="720" aria-label="Cross-section of the ground. A sand and gravel aquifer holds water up to the water table. Four wells go down into it: two shallow and two deep, with small and large pumps. Each pump sends its water through a pipe that runs to the right and pours out at the right edge."></canvas>
+  <div class="stage" id="stage"><canvas id="cv" width="1280" height="720" aria-label="Cross-section of the ground. A sand and gravel aquifer holds water up to the water table. Four wells go down into it: two deep wells on the left and two shallow wells to their right, each with a low-capacity or high-capacity pump. Each pump sends its water through a pipe with a flow meter that pours into a pool on the right, and the pool drains slowly out of its far side."></canvas>
     <!-- Controls laid over the diagram, positioned in diagram coordinates (1280 x 720) -->
     <div class="hud" id="hud">
-      <div class="chip level-chip" style="left: 24px; top: 14px; width: 220px;">
+      <div class="chip level-chip" style="left: 620px; top: 296px; width: 220px;">
         <div class="chip-row"><label for="level">Water table</label><span class="val" id="vLevel"></span></div>
         <input id="level" type="range" min="0" max="100" step="1" value="90">
         <span class="sub-val" id="vLevelNow"></span>
       </div>
       <!-- pump chips sit in the bedrock band, under their wells (left = well x - 70) -->
-      <div class="chip pump-chip" style="left: 225px; bottom: 6px;">
-        <div class="chip-row"><span class="lbl"><span class="num">1</span>Shallow, small</span><button type="button" class="switch" id="sw0" aria-pressed="true" aria-label="Pump 1, shallow small">On</button></div>
+      <div class="chip pump-chip" style="left: 35px; bottom: 6px;">
+        <div class="chip-row"><span class="lbl"><span class="num">1</span><span>Deep<small>Low capacity</small></span></span><button type="button" class="switch" id="sw0" aria-pressed="true" aria-label="Pump 1, deep low-capacity">On</button></div>
         <span class="pump-status" id="st0"></span>
       </div>
-      <div class="chip pump-chip" style="left: 375px; bottom: 6px;">
-        <div class="chip-row"><span class="lbl"><span class="num">2</span>Shallow, large</span><button type="button" class="switch" id="sw1" aria-pressed="true" aria-label="Pump 2, shallow large">On</button></div>
+      <div class="chip pump-chip" style="left: 175px; bottom: 6px;">
+        <div class="chip-row"><span class="lbl"><span class="num">2</span><span>Deep<small>High capacity</small></span></span><button type="button" class="switch" id="sw1" aria-pressed="true" aria-label="Pump 2, deep high-capacity">On</button></div>
         <span class="pump-status" id="st1"></span>
       </div>
-      <div class="chip pump-chip" style="left: 525px; bottom: 6px;">
-        <div class="chip-row"><span class="lbl"><span class="num">3</span>Deep, small</span><button type="button" class="switch" id="sw2" aria-pressed="true" aria-label="Pump 3, deep small">On</button></div>
+      <div class="chip pump-chip" style="left: 315px; bottom: 6px;">
+        <div class="chip-row"><span class="lbl"><span class="num">3</span><span>Shallow<small>Low capacity</small></span></span><button type="button" class="switch" id="sw2" aria-pressed="true" aria-label="Pump 3, shallow low-capacity">On</button></div>
         <span class="pump-status" id="st2"></span>
       </div>
-      <div class="chip pump-chip" style="left: 675px; bottom: 6px;">
-        <div class="chip-row"><span class="lbl"><span class="num">4</span>Deep, large</span><button type="button" class="switch" id="sw3" aria-pressed="true" aria-label="Pump 4, deep large">On</button></div>
+      <div class="chip pump-chip" style="left: 455px; bottom: 6px;">
+        <div class="chip-row"><span class="lbl"><span class="num">4</span><span>Shallow<small>High capacity</small></span></span><button type="button" class="switch" id="sw3" aria-pressed="true" aria-label="Pump 4, shallow high-capacity">On</button></div>
         <span class="pump-status" id="st3"></span>
       </div>
     </div>
   </div>
 
   <div class="bar">
-    <span class="note">The small pumps deliver up to 4 L/s and the large pumps up to 10 L/s. A pump runs at full rate while the water stays above the top of its intake screen, slows as the water drops past the screen, and runs dry once the water is below it. The larger the flow, the deeper the dip it pulls in the water table around its well. Each pipe's dots, its flow meter, and the width of its outflow all grow with the flow. Tap a pump to switch it on or off.</span>
+    <span class="note">The low-capacity pumps deliver up to 4 L/s and the high-capacity pumps up to 10 L/s. Everything pumped pours into the pool, which drains at a rate that rises with its level, so it settles fuller the more water comes in. A pump runs at full rate while the water stays above the top of its intake screen, slows as the water drops past the screen, and runs dry once the water is below it. The larger the flow, the deeper the dip it pulls in the water table around its well. Each pipe's dots, its flow meter, and the width of the stream it pours into the pool all grow with the flow. Tap a pump to switch it on or off.</span>
     <div class="btns"><button id="pause" type="button">Pause</button><button id="full" type="button">Full screen</button></div>
   </div>
   </div>
@@ -383,21 +385,26 @@ window.Analog = (() => {
   const DOTS_PER_LS = 2.4;       // dots per second in a pipe, per L/s
   const SPEED = 230;             // dot speed through the pipes, px/s
   const R = 4.5;                 // water dot radius
-  const PIPE_END = 1150;         // outlet pipes end here and pour out to the right
-  const METER_X = 990;           // inline flow meters
+  const PIPE_END = 860;          // outlet pipes end here and pour into the pool
+  const METER_X = 650;           // inline flow meters
+  // Pool on the ground at the right; drains through its far wall at a rate that rises with its level
+  const POOL = { x0: 900, x1: 1232, top: 176, bottom: 266 };
+  const POOL_VOL = 220;          // litres when full
+  const DRAIN_FULL = 34;         // L/s draining when full: all four pumps (28 L/s) settle it near 82%
+  const DRAIN_Y = POOL.bottom - 14;
 
   // The four wells. bottom = bottom of the intake screen.
   const wells = [
-    { x: 300, deep: false, cap: 4,  row: 62,  name: 'Shallow, small' },
-    { x: 450, deep: false, cap: 10, row: 110, name: 'Shallow, large' },
-    { x: 600, deep: true,  cap: 4,  row: 158, name: 'Deep, small' },
-    { x: 750, deep: true,  cap: 10, row: 206, name: 'Deep, large' },
+    { x: 100, deep: true,  cap: 4,  row: 40,  name: 'Deep, low capacity' },
+    { x: 240, deep: true,  cap: 10, row: 82,  name: 'Deep, high capacity' },
+    { x: 380, deep: false, cap: 4,  row: 124, name: 'Shallow, low capacity' },
+    { x: 520, deep: false, cap: 10, row: 166, name: 'Shallow, high capacity' },
   ];
   const PUMP_TOP = 222;
   for (const w of wells) {
     w.bottom = w.deep ? 630 : 440;
     w.top = w.bottom - SCREEN;
-    w.large = w.cap > 5;
+    w.large = w.cap > 5;   // high capacity
     w.casing = w.large ? 26 : 18;     // casing width
     w.pipe = w.large ? 22 : 15;       // discharge pipe bore
     w.housing = w.large ? 58 : 44;
@@ -424,7 +431,8 @@ window.Analog = (() => {
   let table = levelY(Number(levelEl.value));   // actual water table, eases toward the slider
   let jets = [];                               // water leaving the pipe ends
   let seep = [];                               // dots drifting through the aquifer
-  let rain = [];                               // recharge drops while the table rises
+  let rain = [];
+  let pool = 0.6, drain = 0, drainAcc = 0, drainDots = [];   // pool fill 0..1, drain flow L/s                               // recharge drops while the table rises
   let paused = false;
   let colors = {};
 
@@ -488,7 +496,7 @@ window.Analog = (() => {
         d.s += SPEED * dt;
         if (d.s >= w.len) {
           w.dots.splice(k, 1);
-          // pour out: faster and flatter for bigger flows, a dribble for small ones
+          // pour out: faster and flatter for bigger flows, a dribble for low ones
           const sp = 110 + 22 * w.flow + Math.random() * 30;
           jets.push({ x: PIPE_END, y: w.row + d.off, vx: sp, vy: (Math.random() - 0.3) * 20, w });
         }
@@ -498,8 +506,17 @@ window.Analog = (() => {
     for (let k = jets.length - 1; k >= 0; k--) {
       const j = jets[k];
       j.vy += 520 * dt; j.x += j.vx * dt; j.y += j.vy * dt;
+      if (j.y >= poolSurface() && j.x > POOL.x0 && j.x < POOL.x1) { jets.splice(k, 1); continue; }
       if (j.x > W + 10 || j.y > GROUND) jets.splice(k, 1);
     }
+
+    // Pool: fills with everything pumped, drains in proportion to its level
+    const inflow = wells.reduce((a, w) => a + w.flow, 0);
+    drain = DRAIN_FULL * pool;
+    pool = Math.max(0, Math.min(1, pool + (inflow - drain) * dt / POOL_VOL));
+    drainAcc += drain * DOTS_PER_LS * dt;
+    while (drainAcc >= 1) { drainAcc -= 1; drainDots.push({ x: POOL.x1 + 4, off: (Math.random() - 0.5) * 8 }); }
+    for (let k = drainDots.length - 1; k >= 0; k--) { drainDots[k].x += 120 * dt; if (drainDots[k].x > W + 6) drainDots.splice(k, 1); }
 
     // Aquifer water drifts slowly, and toward any running well's screen
     for (const p of seep) {
@@ -532,6 +549,7 @@ window.Analog = (() => {
     }
   }
 
+  const poolSurface = () => POOL.bottom - (POOL.bottom - POOL.top - 8) * pool;
   function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
   function dot(x, y, c, r = R) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
 
@@ -593,15 +611,15 @@ window.Analog = (() => {
     const target = levelY(Number(levelEl.value));
     if (Math.abs(target - table) > 1.5) {
       ctx.setLineDash([6, 6]); ctx.strokeStyle = colors.accent; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(0, target); ctx.lineTo(250, target); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(560, target); ctx.lineTo(W, target); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = colors.accent; ctx.font = '600 13px "Barlow Condensed", sans-serif'; ctx.textAlign = 'left';
-      ctx.fillText((target < table ? 'RISING TO ' : 'FALLING TO ') + levelEl.value + '%', 14, target - 7);
+      ctx.fillText((target < table ? 'RISING TO ' : 'FALLING TO ') + levelEl.value + '%', 860, target - 7);
     }
 
     // Intake depth guides
     ctx.setLineDash([3, 6]); ctx.strokeStyle = colors.muted; ctx.lineWidth = 1.2;
     for (const [y, label] of [[440, 'SHALLOW INTAKES'], [630, 'DEEP INTAKES']]) {
-      ctx.beginPath(); ctx.moveTo(820, y); ctx.lineTo(W - 14, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(560, y); ctx.lineTo(W - 14, y); ctx.stroke();
       ctx.fillStyle = colors.muted; ctx.font = '600 12px "Barlow Condensed", sans-serif'; ctx.textAlign = 'right';
       ctx.fillText(label, W - 14, y - 5);
     }
@@ -619,7 +637,7 @@ window.Analog = (() => {
     for (const c of cracks) { ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x + Math.cos(c.a) * c.l, c.y + Math.sin(c.a) * c.l); ctx.stroke(); }
     ctx.fillStyle = colors.muted; ctx.font = '600 14px "Barlow Condensed", sans-serif'; ctx.textAlign = 'right';
     ctx.fillText('BEDROCK', W - 14, H - 14);
-    ctx.textAlign = 'left'; ctx.fillText('AQUIFER: SAND AND GRAVEL', 14, ROCK - 12);
+    ctx.textAlign = 'left'; ctx.fillText('AQUIFER: SAND AND GRAVEL', 600, ROCK - 30);
 
     // --- Wells ---
     for (const w of wells) {
@@ -672,7 +690,7 @@ window.Analog = (() => {
         for (let t = 0; t <= 0.9; t += 0.03) {
           const x = PIPE_END + sp * t, y = w.row + 0.5 * g * t * t;
           t ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-          if (x > W + 10) break;
+          if (y > poolSurface()) break;
         }
         ctx.strokeStyle = colors.water; ctx.globalAlpha = 0.3; ctx.lineCap = 'round';
         ctx.lineWidth = Math.min(w.pipe - 2, 2 + 1.9 * w.flow); ctx.stroke();
@@ -680,10 +698,10 @@ window.Analog = (() => {
       }
     }
     for (const j of jets) {
-      ctx.globalAlpha = Math.max(0, 1 - (j.x - PIPE_END) / (W - PIPE_END + 20));
       dot(j.x, j.y, colors.water);
     }
     ctx.globalAlpha = 1;
+    drawPool();
 
     // Inline flow meters and outlet labels
     for (let i = 0; i < 4; i++) {
@@ -695,8 +713,6 @@ window.Analog = (() => {
       ctx.font = '500 13px "IBM Plex Mono", monospace';
       ctx.fillText(w.flow > 0.05 ? w.flow.toFixed(1) + ' L/s' : (w.dry ? 'dry' : 'off'), METER_X + 82, w.row - 15);
     }
-    ctx.fillStyle = colors.muted; ctx.font = '600 12px "Barlow Condensed", sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('FLOW METERS, L/S', METER_X, 24);
 
     // Pump housings on the wellheads
     for (let i = 0; i < 4; i++) {
@@ -720,10 +736,38 @@ window.Analog = (() => {
     ctx.fillText('GROUND', 14, GROUND - 10);
   }
 
+  function drawPool() {
+    const { x0, x1, top, bottom } = POOL, sy = poolSurface(), t = performance.now() / 1000;
+    // drain pipe through the far wall
+    ctx.strokeStyle = colors.line; ctx.lineWidth = 20; ctx.beginPath(); ctx.moveTo(x1, DRAIN_Y); ctx.lineTo(W, DRAIN_Y); ctx.stroke();
+    ctx.strokeStyle = colors.vessel; ctx.lineWidth = 13; ctx.stroke();
+    for (const d of drainDots) dot(d.x, DRAIN_Y + d.off * 0.4, colors.water, 3.5);
+    // water, with a gentle wave that's livelier the more is pouring in
+    const inflow = wells.reduce((a, w) => a + w.flow, 0), amp = 1 + inflow * 0.08;
+    if (pool > 0.005) {
+      ctx.beginPath(); ctx.moveTo(x0, bottom);
+      for (let x = x0; x <= x1; x += 6) ctx.lineTo(x, Math.min(bottom, sy + Math.sin(x / 22 + t * 3) * amp));
+      ctx.lineTo(x1, bottom); ctx.closePath();
+      ctx.fillStyle = colors.sat; ctx.fill();
+      ctx.fillStyle = colors.water; ctx.globalAlpha = 0.35; ctx.fill(); ctx.globalAlpha = 1;
+    }
+    // full mark
+    ctx.setLineDash([4, 5]); ctx.strokeStyle = colors.muted; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x0 + 4, top + 8); ctx.lineTo(x1 - 4, top + 8); ctx.stroke(); ctx.setLineDash([]);
+    // walls
+    ctx.strokeStyle = colors['steel-dark']; ctx.lineWidth = 6; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(x0, top); ctx.lineTo(x0, bottom + 2); ctx.lineTo(x1, bottom + 2); ctx.lineTo(x1, top); ctx.stroke();
+    ctx.lineJoin = 'miter';
+    ctx.fillStyle = colors.fg; ctx.font = '600 14px "Barlow Condensed", sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('POOL ' + Math.round(pool * 100) + '% FULL', x1, top - 28);
+    ctx.fillStyle = colors.water; ctx.font = '500 13px "IBM Plex Mono", monospace';
+    ctx.fillText('draining ' + drain.toFixed(1) + ' L/s', x1, top - 10);
+  }
+
   // DOM readouts
   const sw = [0, 1, 2, 3].map(i => document.getElementById('sw' + i));
   const st = [0, 1, 2, 3].map(i => document.getElementById('st' + i));
-  const rLevel = document.getElementById('rLevel'), rTotal = document.getElementById('rTotal');
+  const rLevel = document.getElementById('rLevel'), rTotal = document.getElementById('rTotal'), rPool = document.getElementById('rPool');
   const vLevel = document.getElementById('vLevel'), vLevelNow = document.getElementById('vLevelNow');
   function updateDom() {
     let total = 0;
@@ -740,6 +784,7 @@ window.Analog = (() => {
     const now = Math.round(pctAt(table)), tgt = Number(levelEl.value);
     rLevel.textContent = now + '%';
     rTotal.textContent = total.toFixed(1) + ' L/s';
+    rPool.textContent = Math.round(pool * 100) + '%';
     vLevel.textContent = tgt + '%';
     vLevelNow.textContent = now === tgt ? 'Settled at ' + now + '%' : (now < tgt ? 'Rising, now ' : 'Falling, now ') + now + '%';
   }
@@ -767,11 +812,11 @@ window.Analog = (() => {
 
   // Scenarios: each sets the controls; the water table then moves slowly to the new level
   const PRESETS = {
-    wet:     { level: 90, on: [1, 1, 1, 1], note: '<b>Wet season.</b> The water table is high, well above every intake, so all four pumps run at full rate: 4 L/s for the small pumps and 10 L/s for the large ones.' },
-    dry:     { level: 64, on: [1, 1, 1, 1], note: '<b>Dry season.</b> The water table drops into the shallow intakes. The shallow wells slow down, and the large shallow pump loses the bigger share of its flow because it pulls the water down further around itself. The deep wells don\'t notice.' },
-    drought: { level: 30, on: [1, 1, 1, 1], note: '<b>Drought.</b> The water table is below the shallow intakes, so both shallow wells run dry even though their pumps are on. Only the deep wells still deliver.' },
-    severe:  { level: 8,  on: [1, 1, 1, 1], note: '<b>Severe drought.</b> The water table sinks into the deep intakes. Both deep wells slow to a trickle, and the large pump loses the bigger share of its flow because it pulls its own well down harder. Lower the water table a little more and they run dry too.' },
-    recover: { level: 75, on: [0, 0, 0, 0], note: '<b>Pumps off, recovering.</b> Every pump is off and the water table climbs back. Switch the pumps on one at a time to compare their flows.' },
+    wet:     { level: 90, on: [1, 1, 1, 1], note: '<b>Wet season.</b> The water table is high, well above every intake, so all four pumps run at full rate: 4 L/s for the low-capacity pumps and 10 L/s for the high-capacity ones. The pool fills to about 80%.' },
+    dry:     { level: 64, on: [1, 1, 1, 1], note: '<b>Dry season.</b> The water table drops into the shallow intakes. The shallow wells slow down, and the high-capacity shallow pump loses the bigger share of its flow because it pulls the water down further around itself. The deep wells don\'t notice, but the pool settles lower.' },
+    drought: { level: 30, on: [1, 1, 1, 1], note: '<b>Drought.</b> The water table is below the shallow intakes, so both shallow wells run dry even though their pumps are on. Only the deep wells still deliver, so the pool drops to about 40%.' },
+    severe:  { level: 8,  on: [1, 1, 1, 1], note: '<b>Severe drought.</b> The water table sinks into the deep intakes. Both deep wells slow to a trickle, and the high-capacity pump loses the bigger share of its flow because it pulls its own well down harder. Lower the water table a little more and they run dry too.' },
+    recover: { level: 75, on: [0, 0, 0, 0], note: '<b>Pumps off, recovering.</b> Every pump is off, so the pool drains away while the water table climbs back. Switch the pumps on one at a time to compare their flows.' },
   };
   const presetBtns = [...document.querySelectorAll('[data-preset]')];
   const presetNote = document.getElementById('presetNote');
