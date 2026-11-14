@@ -60,4 +60,4 @@ Four wells draw from one sand and gravel aquifer above bedrock. The pumps stand 
 - Each well has a 50px intake screen. A pump runs at full rate while the water near its well is above the screen, slows as the water drops past the screen, and runs dry below it.
 - A running pump pulls the water table down around its well, 3px per L/s, so a high-capacity pump starts losing flow at a higher water table than a low-capacity one at the same depth.
 - Flow shows as dots rising in each pipe (2.4 dots/s per L/s at a constant speed, so tighter spacing means more flow), a flow meter on each riser, and the fountain's height (10.5px per L/s) and width.
-- The pool drains through a pipe in its far wall that runs off the page. It holds 400 L and drains at 34 L/s × how full it is, so it settles at (total pumped ÷ 34): about 82% with all four pumps at full rate.
+- The pool drains through a short pipe in its side wall. The water spills onto the ground and spreads out in channels like a small river delta, wider and brighter the more is draining. It holds 400 L and drains at 34 L/s × how full it is, so it settles at (total pumped ÷ 34): about 82% with all four pumps at full rate.
