@@ -2,6 +2,7 @@
   "name": "Pressure Vessel Mixer",
   "short_name": "Vessel Mixer",
   "start_url": "./",
+  "scope": "./",
   "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#eef1f3",

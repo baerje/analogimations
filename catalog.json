@@ -1,0 +1,13 @@
+{
+  "title": "Analogimations",
+  "intro": "Interactive animations. Pick one to open it. Each one works full screen on an iPad and sideways on a phone.",
+  "animations": [
+    {
+      "id": "pressure-vessel",
+      "title": "Pressure Vessel Mixer",
+      "short_name": "Vessel Mixer",
+      "blurb": "Three sources push colored particles into a vessel at different pressures. See which ones get in, how they mix, and what leaves through the outlet.",
+      "tags": ["pressure", "flow", "mixing"]
+    }
+  ]
+}

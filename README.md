@@ -1,42 +1,51 @@
-# Pressure Vessel Mixer
+# Analogimations
 
-An interactive animation that shows how pressures interact. Three sources push colored particles into a vessel, the particles mix, and the mixture leaves through an outlet valve and sprays into the open air.
+A collection of interactive animations. The home page is a catalog of cards; each animation has its own page under `animations/`.
 
-- **Source A (red)** and **Source B (blue)** come in from the right, each through a hand valve.
-- **Source C (green)** comes down the left side and into the bottom of the vessel through a one-way valve.
-- The **outlet** leaves the top of the vessel and runs to the right.
+Live site: https://baerje.github.io/analogimations/
 
-Gauges show each source's pressure and the vessel's pressure, and two bars show the color mix inside the vessel and in the last 100 particles out. Scenario buttons set up common situations, such as one source overpowering the others or the outlet closed.
+| Animation | Page |
+| --- | --- |
+| Pressure Vessel Mixer | [animations/pressure-vessel/](https://baerje.github.io/analogimations/animations/pressure-vessel/) |
 
-## How it behaves
+## Layout
+
+| Path | What it is |
+| --- | --- |
+| `index.html` | The catalog page. Built from `catalog.json`; don't edit by hand. |
+| `catalog.json` | Site title and intro, and the list of animations (id, title, short name, blurb, tags). |
+| `animations/<id>/src/index.html` | The source of one animation. Edit this. It links the shared files, so it also opens directly in a browser. |
+| `animations/<id>/src/icon.png` | Its home-screen icon (square, 512px or larger). |
+| `animations/<id>/index.html` | The built page, with the shared files inlined so it works on its own. Plus `apple-touch-icon.png`, `icon-512.png`, `manifest.webmanifest`. |
+| `animations/<id>/thumb.png` | Catalog thumbnail (640x360). |
+| `shared/analog.css` | Shared palette (light and dark), fonts, page layout, control chips over a 16:9 diagram, full-screen show mode, phone rules. |
+| `shared/analog.js` | Shared behavior: `Analog.showMode` (Full screen button, opens full screen from the iPad home screen), `Analog.fitDiagram` (scales the controls with the diagram, phone and "turn sideways" classes), `Analog.drawDial` (gauge), `Analog.watchColors` (dark mode colors for canvas drawing). |
+| `tools/build.py` | Builds every animation and the catalog. |
+| `tools/thumbs.js` | Regenerates the thumbnails. |
+
+## Making changes
+
+1. Edit `animations/<id>/src/index.html` (or a file in `shared/`, which affects every animation).
+2. Run `python3 tools/build.py` (needs Python 3 with Pillow).
+3. If the diagram looks different, run `node tools/thumbs.js` (needs Node with Playwright), then `python3 tools/build.py` again.
+4. Commit the source and the built files, and push to `main`. GitHub Pages updates in a minute or two.
+
+## Adding an animation
+
+1. Copy `animations/pressure-vessel/src/` to `animations/<new-id>/src/` and replace the diagram and its script. Keep the page structure (`.show` holding `.presets`, `.stage` with the canvas and `.hud`, and `.bar` with a `#full` button) and the calls to `Analog.showMode` and `Analog.fitDiagram`, and it gets the iPad full screen and phone sideways behavior for free.
+2. Replace `src/icon.png`.
+3. Add an entry to `catalog.json`.
+4. Run the build steps above.
+
+## Hosting
+
+GitHub Pages serves `main`, folder `/ (root)` (Settings → Pages → Deploy from a branch). On an iPad, open an animation's page in Safari and use **Share → Add to Home Screen** to get a full-screen app for it.
+
+## Pressure Vessel Mixer: how it behaves
+
+Three sources push colored particles into a vessel, the particles mix, and the mixture leaves through an outlet valve and sprays into the open air.
 
 - Pressures are in bar, 0 to 10. The vessel reads 10 bar when it holds 400 particles.
 - A source flows only while its pressure is above the vessel's. It never flows backward.
 - Inflow = 14 particles/s × hand valve opening × (source pressure − vessel pressure).
 - Outflow = 16 particles/s × outlet valve opening × vessel pressure.
-
-## Files
-
-| Path | What it is |
-| --- | --- |
-| `index.html` | The page to host. Includes the settings for adding it to an iPad or iPhone home screen. |
-| `apple-touch-icon.png`, `icon-512.png`, `manifest.webmanifest` | Home-screen icon and app settings. |
-| `src/pressure-vessel.html` | The source of the page, as published to the Claude artifact. Edit this file. |
-| `tools/build.py` | Rebuilds `index.html` and the icons from `src/`. |
-
-## Making changes
-
-1. Edit `src/pressure-vessel.html`.
-2. Run `python3 tools/build.py` (needs Python 3 with Pillow for the icons).
-3. Commit both the source and the rebuilt files.
-
-To try it locally, open `index.html` in a browser.
-
-## Hosting with GitHub Pages
-
-In the repository's **Settings → Pages**, set the source to **Deploy from a branch**, branch `main`, folder `/ (root)`. The page appears at `https://<user>.github.io/pressure_vessel_demo/`. On an iPad, open that address in Safari and use **Share → Add to Home Screen** to get a full-screen app.
-
-## Viewing tips
-
-- **Full screen** (next to Pause) fills the screen with the diagram and its controls.
-- On a phone, turn it sideways: the scenarios move into a menu and the controls stay on the diagram.

@@ -1,0 +1,134 @@
+/* Shared look and behavior for every analogimation: palette, fonts, page layout, control chips over
+   a 16:9 diagram, full-screen show mode, and phone rules (scenario menu, "turn sideways" hint). */
+:root {
+  --bg: #eef1f3;
+  --panel: #ffffff;
+  --fg: #1b2328;
+  --muted: #5c6a73;
+  --line: #c9d1d6;
+  --steel: #8d9aa3;
+  --steel-dark: #56646d;
+  --vessel: #f7f9fa;
+  --accent: #d07a12;
+  --red: #d8423a;
+  --blue: #2f6fd6;
+  --green: #22975a;
+  --closed: #9aa5ac;
+  --font-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161a; --panel: #192026; --fg: #e3e8eb; --muted: #93a1aa; --line: #2c363d;
+    --steel: #5d6b74; --steel-dark: #8796a0; --vessel: #0d1216; --accent: #f0a040;
+    --red: #f0605a; --blue: #5b93f0; --green: #3cc47e; --closed: #4a555c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161a; --panel: #192026; --fg: #e3e8eb; --muted: #93a1aa; --line: #2c363d;
+  --steel: #5d6b74; --steel-dark: #8796a0; --vessel: #0d1216; --accent: #f0a040;
+  --red: #f0605a; --blue: #5b93f0; --green: #3cc47e; --closed: #4a555c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 32px;
+}
+.wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 16px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: 30px; letter-spacing: 0.01em; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 62ch; line-height: 1.45; }
+.readout { display: flex; gap: 20px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.readout div { display: grid; gap: 2px; }
+.readout span { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.readout b { font-weight: 500; font-size: 20px; }
+.stage { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; max-width: 100%; }
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.ctl { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: grid; gap: 8px; min-width: 0; }
+.ctl-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ctl label { font-family: var(--font-display); font-weight: 500; font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.val { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; }
+.state { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.state.open { color: var(--green); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.btns { display: flex; gap: 8px; }
+button {
+  font-family: var(--font-display); font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase;
+  background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px;
+  padding: 7px 14px; cursor: pointer;
+}
+button:hover { border-color: var(--steel-dark); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.presets { display: grid; gap: 10px; }
+.preset-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.preset-btns button[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+.preset-note { margin: 0; color: var(--muted); line-height: 1.45; max-width: 90ch; min-height: 1.45em; }
+.preset-note b { color: var(--fg); font-weight: 500; }
+.stage { position: relative; }
+.hud { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; pointer-events: none; }
+.chip {
+  position: absolute; width: 210px; pointer-events: auto; display: grid; gap: 4px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent); border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px 10px; box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+.chip-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.chip label { font-family: var(--font-display); font-weight: 500; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.chip .val { font-size: 13px; }
+.chip input[type=range] { margin: 0 0 4px; }
+/* Narrow screens: the diagram is too small to hold usable sliders, so they drop below it */
+.stage.stacked .hud { position: static; width: auto; height: auto; transform: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 12px; border-top: 1px solid var(--line); }
+.stage.stacked .chip { position: static; width: auto !important; box-shadow: none; }
+.show { display: grid; gap: 16px; }
+/* Full-screen show mode: presets, diagram and buttons fill the screen; the diagram keeps its
+   16:9 layout and is only scaled to the largest size that fits. */
+.show.is-show {
+  position: fixed; inset: 0; z-index: 50; overflow: auto;
+  background: var(--bg); align-content: center; gap: 12px;
+  padding-block: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.show.is-show .stage { width: min(100%, calc((100dvh - 190px) * 16 / 9)); justify-self: center; }
+.show.is-show .presets, .show.is-show .bar { width: min(100%, calc((100dvh - 190px) * 16 / 9)); justify-self: center; }
+.show.is-show .note { display: none; }
+.show.is-show .bar { justify-content: flex-end; }
+.chip { transform: scale(var(--boost, 1)); transform-origin: top left; }
+.mix-chip { transform: none; }  /* display only, already large enough */
+.preset-menu, .rotate-hint { display: none; }
+.preset-menu { align-items: center; gap: 8px; }
+.preset-menu label { font-family: var(--font-display); font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.preset-menu select {
+  font: 500 15px var(--font-body); color: var(--fg); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; min-width: 0; max-width: 100%;
+}
+.rotate-hint { margin: 0; padding: 10px 12px; border: 1px dashed var(--steel); border-radius: 6px; color: var(--fg); background: var(--panel); line-height: 1.4; }
+
+/* Phones (set from script by screen size) */
+.phone .preset-btns { display: none; }
+.phone .preset-menu { display: flex; }
+.phone.portrait .rotate-hint { display: block; }
+.phone.portrait .hud { display: none; }
+
+/* Phone full screen: the diagram fills the sideways screen, with a slim column of controls beside it */
+.phone .show.is-show {
+  grid-template-columns: auto auto; grid-template-areas: "stage presets" "stage bar";
+  align-content: center; justify-content: center; align-items: center; column-gap: 12px; row-gap: 12px;
+}
+.phone .show.is-show .stage { grid-area: stage; width: min(calc(100vw - 190px), calc((100dvh - 24px) * 16 / 9)); }
+.phone .show.is-show .presets { grid-area: presets; width: 140px; align-self: end; }
+.phone .show.is-show .bar { grid-area: bar; width: 140px; align-self: start; }
+.phone .show.is-show .preset-menu { flex-direction: column; align-items: stretch; }
+.phone .show.is-show .preset-menu select { width: 100%; }
+.phone .show.is-show .preset-note, .phone .show.is-show .rotate-hint { display: none; }
+.phone .show.is-show .btns { flex-direction: column; width: 100%; }
+.phone.portrait .show.is-show { grid-template-columns: 1fr; grid-template-areas: "presets" "stage" "bar"; }
+.phone.portrait .show.is-show .rotate-hint { display: block; }
+.phone.portrait .show.is-show .stage, .phone.portrait .show.is-show .presets, .phone.portrait .show.is-show .bar { width: 100%; }
+.note { color: var(--muted); font-size: 13px; max-width: 80ch; line-height: 1.45; }
