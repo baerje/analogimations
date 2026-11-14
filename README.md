@@ -7,6 +7,7 @@ Live site: https://baerje.github.io/analogimations/
 | Animation | Page |
 | --- | --- |
 | Pressure Vessel Mixer | [animations/pressure-vessel/](https://baerje.github.io/analogimations/animations/pressure-vessel/) |
+| Aquifer Wells | [animations/aquifer-wells/](https://baerje.github.io/analogimations/animations/aquifer-wells/) |
 
 ## Layout
 
@@ -49,3 +50,13 @@ Three sources push colored particles into a vessel, the particles mix, and the m
 - A source flows only while its pressure is above the vessel's. It never flows backward.
 - Inflow = 14 particles/s × hand valve opening × (source pressure − vessel pressure).
 - Outflow = 16 particles/s × outlet valve opening × vessel pressure.
+
+## Aquifer Wells: how it behaves
+
+Four wells draw from one sand and gravel aquifer above bedrock. Each pump sends its water through its own pipe to the right edge.
+
+- Wells 1 and 2 are shallow, wells 3 and 4 are deep. Wells 1 and 3 have small pumps (up to 4 L/s), wells 2 and 4 large ones (up to 10 L/s).
+- The Water table slider sets a target level, 0 to 100%. The water table moves toward it slowly (about 63% of the way every 4 seconds).
+- Each well has a 50px intake screen. A pump runs at full rate while the water near its well is above the screen, slows as the water drops past the screen, and runs dry below it.
+- A running pump pulls the water table down around its well, 3px per L/s, so a large pump starts losing flow at a higher water table than a small one in the same well depth.
+- Flow shows as dots in each pipe (2.4 dots/s per L/s at a constant speed, so tighter spacing means more flow), an inline flow meter, and the width of the stream leaving the pipe.

@@ -1,0 +1,546 @@
+<title>Aquifer Wells</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../../../shared/analog.css">
+<style>
+/* Aquifer wells only: ground colors, pump switches */
+:root {
+  --sand: #e9dcc1; --grain: #c9b48c; --soil: #8a6a45; --grass: #6f9b4a;
+  --rock: #a39d95; --rock-line: #857e75; --water: #3a7bd5; --sat: #c3d6ee;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sand: #3a3226; --grain: #5a4c37; --soil: #5c4630; --grass: #4f7536; --rock: #3b3835; --rock-line: #57524c; --water: #5b93f0; --sat: #1f3047;
+  }
+}
+:root[data-theme="dark"] {
+  --sand: #3a3226; --grain: #5a4c37; --soil: #5c4630; --grass: #4f7536; --rock: #3b3835; --rock-line: #57524c; --water: #5b93f0; --sat: #1f3047;
+}
+.chip .lbl { font-family: var(--font-display); font-weight: 500; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.chip .sub-val { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Pump chips: name, on/off switch, live status. They sit in the bedrock band under their wells. */
+.pump-chip { width: 140px; padding: 6px 8px; gap: 3px; transform: scale(min(var(--boost, 1), 1.07)); transform-origin: bottom left; }
+.pump-chip .chip-row { align-items: center; }
+.pump-chip .lbl { font-size: 12.5px; line-height: 1.1; min-width: 0; }
+.pump-chip .num { font-family: var(--font-mono); font-weight: 500; margin-right: 2px; }
+.switch {
+  font-size: 13px; padding: 3px 0; width: 46px; border-radius: 999px; flex: none;
+  background: var(--panel); color: var(--muted); border-color: var(--line);
+}
+.switch[aria-pressed="true"] { background: var(--water); color: #fff; border-color: var(--water); }
+.pump-status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pump-status.on { color: var(--water); }
+.pump-status.dry { color: var(--accent); }
+.stage.stacked .hud { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.stage.stacked .level-chip { grid-column: 1 / -1; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Aquifer Wells</h1>
+      <p class="sub">Four wells draw from the same underground aquifer. Two are shallow and two are deep, each with a small or a large pump. Raise or lower the water table and watch it settle slowly to the new level. A well only delivers water while the water table is above its intake, and a running pump pulls the water down around its own well.</p>
+    </div>
+    <div class="readout" aria-live="off">
+      <div><span>Water table</span><b id="rLevel">0%</b></div>
+      <div><span>Total pumped</span><b id="rTotal">0.0 L/s</b></div>
+    </div>
+  </header>
+
+  <div class="show" id="show">
+  <div class="presets">
+    <div class="preset-btns" role="group" aria-label="Scenarios">
+      <button type="button" data-preset="wet">Wet season</button>
+      <button type="button" data-preset="dry">Dry season</button>
+      <button type="button" data-preset="drought">Drought</button>
+      <button type="button" data-preset="severe">Severe drought</button>
+      <button type="button" data-preset="recover">Pumps off, recovering</button>
+    </div>
+    <div class="preset-menu">
+      <label for="presetSelect">Scenario</label>
+      <select id="presetSelect">
+        <option value="wet">Wet season</option>
+        <option value="dry">Dry season</option>
+        <option value="drought">Drought</option>
+        <option value="severe">Severe drought</option>
+        <option value="recover">Pumps off, recovering</option>
+        <option value="custom" disabled>Custom settings</option>
+      </select>
+    </div>
+    <p class="preset-note" id="presetNote"></p>
+  </div>
+  <p class="rotate-hint">Turn your phone sideways to see the full diagram and use its controls.</p>
+
+  <div class="stage" id="stage"><canvas id="cv" width="1280" height="720" aria-label="Cross-section of the ground. A sand and gravel aquifer holds water up to the water table. Four wells go down into it: two shallow and two deep, with small and large pumps. Each pump sends its water through a pipe that runs to the right and pours out at the right edge."></canvas>
+    <!-- Controls laid over the diagram, positioned in diagram coordinates (1280 x 720) -->
+    <div class="hud" id="hud">
+      <div class="chip level-chip" style="left: 24px; top: 14px; width: 220px;">
+        <div class="chip-row"><label for="level">Water table</label><span class="val" id="vLevel"></span></div>
+        <input id="level" type="range" min="0" max="100" step="1" value="90">
+        <span class="sub-val" id="vLevelNow"></span>
+      </div>
+      <!-- pump chips sit in the bedrock band, under their wells (left = well x - 70) -->
+      <div class="chip pump-chip" style="left: 225px; bottom: 6px;">
+        <div class="chip-row"><span class="lbl"><span class="num">1</span>Shallow, small</span><button type="button" class="switch" id="sw0" aria-pressed="true" aria-label="Pump 1, shallow small">On</button></div>
+        <span class="pump-status" id="st0"></span>
+      </div>
+      <div class="chip pump-chip" style="left: 375px; bottom: 6px;">
+        <div class="chip-row"><span class="lbl"><span class="num">2</span>Shallow, large</span><button type="button" class="switch" id="sw1" aria-pressed="true" aria-label="Pump 2, shallow large">On</button></div>
+        <span class="pump-status" id="st1"></span>
+      </div>
+      <div class="chip pump-chip" style="left: 525px; bottom: 6px;">
+        <div class="chip-row"><span class="lbl"><span class="num">3</span>Deep, small</span><button type="button" class="switch" id="sw2" aria-pressed="true" aria-label="Pump 3, deep small">On</button></div>
+        <span class="pump-status" id="st2"></span>
+      </div>
+      <div class="chip pump-chip" style="left: 675px; bottom: 6px;">
+        <div class="chip-row"><span class="lbl"><span class="num">4</span>Deep, large</span><button type="button" class="switch" id="sw3" aria-pressed="true" aria-label="Pump 4, deep large">On</button></div>
+        <span class="pump-status" id="st3"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <span class="note">The small pumps deliver up to 4 L/s and the large pumps up to 10 L/s. A pump runs at full rate while the water stays above the top of its intake screen, slows as the water drops past the screen, and runs dry once the water is below it. The larger the flow, the deeper the dip it pulls in the water table around its well. Each pipe's dots, its flow meter, and the width of its outflow all grow with the flow. Tap a pump to switch it on or off.</span>
+    <div class="btns"><button id="pause" type="button">Pause</button><button id="full" type="button">Full screen</button></div>
+  </div>
+  </div>
+</div>
+
+<script src="../../../shared/analog.js"></script>
+<script>
+(() => {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const W = 1280, H = 720;
+
+  // Ground layout (16:9 landscape, diagram coordinates)
+  const GROUND = 270;            // ground surface
+  const ROCK = 650;              // top of the bedrock under the aquifer
+  const TOP_WT = 290, BOT_WT = 645;   // water table at 100% and 0%
+  const levelY = pct => BOT_WT - (BOT_WT - TOP_WT) * pct / 100;
+  const pctAt = y => 100 * (BOT_WT - y) / (BOT_WT - TOP_WT);
+  const TAU = 4;                 // seconds for the water table to cover ~63% of a change
+  const SCREEN = 50;             // intake screen length
+  const DRAW = 3;                // drawdown at the well, px per L/s
+  const CONE = 46;               // width of the drawdown dip
+  const DOTS_PER_LS = 2.4;       // dots per second in a pipe, per L/s
+  const SPEED = 230;             // dot speed through the pipes, px/s
+  const R = 4.5;                 // water dot radius
+  const PIPE_END = 1150;         // outlet pipes end here and pour out to the right
+  const METER_X = 990;           // inline flow meters
+
+  // The four wells. bottom = bottom of the intake screen.
+  const wells = [
+    { x: 300, deep: false, cap: 4,  row: 62,  name: 'Shallow, small' },
+    { x: 450, deep: false, cap: 10, row: 110, name: 'Shallow, large' },
+    { x: 600, deep: true,  cap: 4,  row: 158, name: 'Deep, small' },
+    { x: 750, deep: true,  cap: 10, row: 206, name: 'Deep, large' },
+  ];
+  const PUMP_TOP = 222;
+  for (const w of wells) {
+    w.bottom = w.deep ? 630 : 440;
+    w.top = w.bottom - SCREEN;
+    w.large = w.cap > 5;
+    w.casing = w.large ? 26 : 18;     // casing width
+    w.pipe = w.large ? 22 : 15;       // discharge pipe bore
+    w.housing = w.large ? 58 : 44;
+    w.on = true; w.flow = 0; w.acc = 0; w.dots = []; w.local = TOP_WT; w.spin = 0;
+    // Path water takes: up the casing from the screen, through the pump, up the riser, along the row
+    w.pts = [[w.x, w.bottom - 12], [w.x, w.row], [PIPE_END, w.row]];
+    w.segs = []; let L = 0;
+    for (let k = 1; k < w.pts.length; k++) {
+      const [x0, y0] = w.pts[k - 1], [x1, y1] = w.pts[k];
+      const len = Math.hypot(x1 - x0, y1 - y0);
+      w.segs.push({ x0, y0, dx: (x1 - x0) / len, dy: (y1 - y0) / len, s0: L, len });
+      L += len;
+    }
+    w.len = L;
+  }
+  function posAt(w, s, off = 0) {
+    let g = w.segs[w.segs.length - 1];
+    for (const sg of w.segs) if (s <= sg.s0 + sg.len) { g = sg; break; }
+    const t = s - g.s0;
+    return { x: g.x0 + g.dx * t - g.dy * off, y: g.y0 + g.dy * t + g.dx * off };
+  }
+
+  const levelEl = document.getElementById('level');
+  let table = levelY(Number(levelEl.value));   // actual water table, eases toward the slider
+  let jets = [];                               // water leaving the pipe ends
+  let seep = [];                               // dots drifting through the aquifer
+  let rain = [];                               // recharge drops while the table rises
+  let paused = false;
+  let colors = {};
+
+  Analog.watchColors(['steel','steel-dark','vessel','line','fg','muted','closed','accent','panel','sand','grain','soil','grass','rock','rock-line','water','sat'], colors);
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Fixed sand grains (seeded so they don't shimmer between reloads)
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const grains = Array.from({ length: 900 }, () => ({ x: rnd() * W, y: GROUND + 14 + rnd() * (ROCK - GROUND - 16), r: 1 + rnd() * 2.2 }));
+  const cracks = Array.from({ length: 22 }, () => ({ x: rnd() * W, y: ROCK + 8 + rnd() * 56, l: 14 + rnd() * 30, a: (rnd() - 0.5) * 0.8 }));
+
+  // Water table height at x, including each running pump's drawdown dip
+  function wtAt(x) {
+    let y = table;
+    for (const w of wells) if (w.flow > 0) y += DRAW * w.flow / (1 + ((x - w.x) / CONE) ** 2);
+    return Math.min(y, ROCK - 2);
+  }
+
+  function spawnSeep(anywhere) {
+    // new water enters from the far sides of the aquifer
+    const x = anywhere ? Math.random() * W : (Math.random() < 0.5 ? Math.random() * 120 : W - Math.random() * 300);
+    return { x, y: TOP_WT + Math.random() * (ROCK - TOP_WT - 8), vx: 0, vy: 0 };
+  }
+  for (let k = 0; k < 260; k++) seep.push(spawnSeep(true));
+
+  function step(dt) {
+    // Water table eases toward the slider setting
+    const target = levelY(Number(levelEl.value));
+    const prev = table;
+    table += (target - table) * (1 - Math.exp(-dt / TAU));
+    if (Math.abs(target - table) < 0.05) table = target;
+    const rising = table < prev - 0.01;
+
+    // Each pump: flow from how far the water near the well sits above the screen.
+    // Own dip solved directly: f = cap*(bottom - T)/(SCREEN + cap*DRAW), clamped; neighbors' dips from last frame.
+    for (const w of wells) {
+      let others = 0;
+      for (const o of wells) if (o !== w && o.flow > 0) others += DRAW * o.flow / (1 + ((w.x - o.x) / CONE) ** 2);
+      const T = table + others;
+      let f = w.on ? w.cap * (w.bottom - T) / (SCREEN + w.cap * DRAW) : 0;
+      f = Math.max(0, Math.min(w.cap, f));
+      w.flow += (f - w.flow) * (1 - Math.exp(-dt / 0.5));
+      if (w.flow < 0.02 && f === 0) w.flow = 0;
+      w.local = T + DRAW * w.flow;
+      w.dry = w.on && f < 0.05;
+      w.spin += dt * (w.on ? (w.dry ? 30 : 14) : 0);
+
+      // dots through the pipe, rate set by the flow, constant speed, so spacing shows the flow
+      w.acc += w.flow * DOTS_PER_LS * dt;
+      while (w.acc >= 1) { w.acc -= 1; w.dots.push({ s: 0, off: (Math.random() - 0.5) * (w.pipe - 2 * R - 2) }); }
+      for (let k = w.dots.length - 1; k >= 0; k--) {
+        const d = w.dots[k];
+        d.s += SPEED * dt;
+        if (d.s >= w.len) {
+          w.dots.splice(k, 1);
+          // pour out: faster and flatter for bigger flows, a dribble for small ones
+          const sp = 110 + 22 * w.flow + Math.random() * 30;
+          jets.push({ x: PIPE_END, y: w.row + d.off, vx: sp, vy: (Math.random() - 0.3) * 20, w });
+        }
+      }
+    }
+
+    for (let k = jets.length - 1; k >= 0; k--) {
+      const j = jets[k];
+      j.vy += 520 * dt; j.x += j.vx * dt; j.y += j.vy * dt;
+      if (j.x > W + 10 || j.y > GROUND) jets.splice(k, 1);
+    }
+
+    // Aquifer water drifts slowly, and toward any running well's screen
+    for (const p of seep) {
+      p.vx += (Math.random() - 0.5) * 60 * dt; p.vy += (Math.random() - 0.5) * 60 * dt;
+      let pulled = false;
+      for (const w of wells) {
+        if (w.flow <= 0) continue;
+        const cx = w.x, cy = Math.max(w.top + 8, Math.min(w.bottom - 6, p.y));
+        const dx = cx - p.x, dy = cy - p.y, d = Math.hypot(dx, dy) + 1;
+        if (d < 14) { Object.assign(p, spawnSeep(false)); pulled = true; break; }
+        const a = 5200 * w.flow / (d * d + 2500) * dt * 60;
+        p.vx += dx / d * a * dt; p.vy += dy / d * a * dt;
+      }
+      if (pulled) continue;
+      const damp = Math.pow(0.25, dt);
+      p.vx *= damp; p.vy *= damp;
+      const sp = Math.hypot(p.vx, p.vy), max = 70;
+      if (sp > max) { p.vx *= max / sp; p.vy *= max / sp; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.x < 0) p.x += W; if (p.x > W) p.x -= W;
+      if (p.y < TOP_WT) { p.y = TOP_WT; p.vy = Math.abs(p.vy); }
+      if (p.y > ROCK - 6) { p.y = ROCK - 6; p.vy = -Math.abs(p.vy); }
+    }
+
+    // Recharge drops soaking down while the table rises
+    if (rising && Math.random() < dt * 40) rain.push({ x: 20 + Math.random() * (W - 40), y: GROUND + 14 });
+    for (let k = rain.length - 1; k >= 0; k--) {
+      const r = rain[k]; r.y += 140 * dt;
+      if (r.y >= wtAt(r.x)) rain.splice(k, 1);
+    }
+  }
+
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+  function dot(x, y, c, r = R) { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+
+  // Flow dial: 270 degree sweep, 0 to 10 L/s, sitting on the pipe like an inline meter
+  const A0 = 0.75 * Math.PI, SWEEP = 1.5 * Math.PI, FMAX = 10;
+  const ang = v => A0 + SWEEP * Math.max(0, Math.min(FMAX, v)) / FMAX;
+  function drawMeter(cx, cy, r, value) {
+    ctx.fillStyle = colors.panel; ctx.strokeStyle = colors['steel-dark']; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    const tr = r - 5;
+    ctx.lineCap = 'round'; ctx.lineWidth = 3.5;
+    ctx.strokeStyle = colors.line; ctx.beginPath(); ctx.arc(cx, cy, tr, A0, A0 + SWEEP); ctx.stroke();
+    if (value > 0.01) { ctx.strokeStyle = colors.water; ctx.beginPath(); ctx.arc(cx, cy, tr, A0, ang(value)); ctx.stroke(); }
+    ctx.lineCap = 'butt';
+    const a = ang(value);
+    ctx.strokeStyle = colors.fg; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * (tr - 3), cy + Math.sin(a) * (tr - 3)); ctx.stroke();
+    ctx.fillStyle = colors.fg; ctx.beginPath(); ctx.arc(cx, cy, 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // --- Ground cross-section ---
+    ctx.fillStyle = colors.sand; ctx.fillRect(0, GROUND, W, ROCK - GROUND);
+
+    // Saturated zone: everything below the water table profile
+    const sat = new Path2D(); sat.moveTo(0, ROCK);
+    for (let x = 0; x <= W; x += 8) sat.lineTo(x, wtAt(x));
+    sat.lineTo(W, ROCK); sat.closePath();
+    ctx.fillStyle = colors.sat; ctx.fill(sat);
+    ctx.fillStyle = colors.grain; ctx.globalAlpha = 0.8;
+    for (const g of grains) { ctx.beginPath(); ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    ctx.save();
+    ctx.clip(sat);
+    ctx.globalAlpha = 0.75;
+    for (const p of seep) if (p.y > wtAt(p.x) + 3) dot(p.x, p.y, colors.water, 3);
+    ctx.restore();
+
+    // water table line, with the usual inverted-triangle marker
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 8) x ? ctx.lineTo(x, wtAt(x)) : ctx.moveTo(x, wtAt(x));
+    ctx.strokeStyle = colors.water; ctx.lineWidth = 2.5; ctx.stroke();
+    {
+      const mx = 1210, my = wtAt(mx);
+      ctx.fillStyle = colors.water;
+      ctx.beginPath(); ctx.moveTo(mx - 8, my - 14); ctx.lineTo(mx + 8, my - 14); ctx.lineTo(mx, my - 3); ctx.closePath(); ctx.fill();
+      ctx.font = '600 14px "Barlow Condensed", sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText('WATER TABLE ' + Math.round(pctAt(table)) + '%', mx - 14, my - 6);
+    }
+
+    // recharge drops
+    ctx.strokeStyle = colors.water; ctx.lineWidth = 2; ctx.globalAlpha = 0.6;
+    for (const r of rain) { ctx.beginPath(); ctx.moveTo(r.x, r.y - 7); ctx.lineTo(r.x, r.y); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+
+    // Target level marker on the left edge while the table is moving
+    const target = levelY(Number(levelEl.value));
+    if (Math.abs(target - table) > 1.5) {
+      ctx.setLineDash([6, 6]); ctx.strokeStyle = colors.accent; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, target); ctx.lineTo(250, target); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = colors.accent; ctx.font = '600 13px "Barlow Condensed", sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText((target < table ? 'RISING TO ' : 'FALLING TO ') + levelEl.value + '%', 14, target - 7);
+    }
+
+    // Intake depth guides
+    ctx.setLineDash([3, 6]); ctx.strokeStyle = colors.muted; ctx.lineWidth = 1.2;
+    for (const [y, label] of [[440, 'SHALLOW INTAKES'], [630, 'DEEP INTAKES']]) {
+      ctx.beginPath(); ctx.moveTo(820, y); ctx.lineTo(W - 14, y); ctx.stroke();
+      ctx.fillStyle = colors.muted; ctx.font = '600 12px "Barlow Condensed", sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(label, W - 14, y - 5);
+    }
+    ctx.setLineDash([]);
+
+    // Topsoil and grass
+    ctx.fillStyle = colors.soil; ctx.fillRect(0, GROUND, W, 12);
+    ctx.fillStyle = colors.grass; ctx.fillRect(0, GROUND - 3, W, 5);
+
+    // Bedrock
+    ctx.fillStyle = colors.rock; ctx.fillRect(0, ROCK, W, H - ROCK);
+    ctx.strokeStyle = colors['rock-line']; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(0, ROCK); ctx.lineTo(W, ROCK); ctx.stroke();
+    ctx.lineWidth = 1.5;
+    for (const c of cracks) { ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(c.x + Math.cos(c.a) * c.l, c.y + Math.sin(c.a) * c.l); ctx.stroke(); }
+    ctx.fillStyle = colors.muted; ctx.font = '600 14px "Barlow Condensed", sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText('BEDROCK', W - 14, H - 14);
+    ctx.textAlign = 'left'; ctx.fillText('AQUIFER: SAND AND GRAVEL', 14, ROCK - 12);
+
+    // --- Wells ---
+    for (const w of wells) {
+      const half = w.casing / 2;
+      // casing down to the screen
+      ctx.fillStyle = colors.vessel; ctx.fillRect(w.x - half, GROUND - 4, w.casing, w.bottom - GROUND + 4);
+      // water standing in the well up to the level just outside it
+      const wl = Math.max(w.local, GROUND);
+      if (wl < w.bottom) {
+        ctx.fillStyle = colors.water; ctx.globalAlpha = 0.35;
+        ctx.fillRect(w.x - half, wl, w.casing, w.bottom - wl); ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = colors['steel-dark']; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(w.x - half, GROUND - 4); ctx.lineTo(w.x - half, w.top); ctx.moveTo(w.x + half, GROUND - 4); ctx.lineTo(w.x + half, w.top); ctx.stroke();
+      // slotted intake screen
+      ctx.lineWidth = 3;
+      for (let y = w.top; y < w.bottom; y += 8) {
+        ctx.beginPath(); ctx.moveTo(w.x - half, y); ctx.lineTo(w.x - half, y + 4); ctx.moveTo(w.x + half, y); ctx.lineTo(w.x + half, y + 4); ctx.stroke();
+      }
+      ctx.beginPath(); ctx.moveTo(w.x - half - 2, w.bottom); ctx.lineTo(w.x + half + 2, w.bottom); ctx.stroke();
+      // screen label
+      ctx.fillStyle = w.dry ? colors.accent : colors.muted; ctx.font = '500 11px "Barlow Condensed", sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText('INTAKE', w.x + half + 6, w.top + 14);
+      if (w.dry) { ctx.font = '600 13px "Barlow Condensed", sans-serif'; ctx.fillText('DRY', w.x + half + 6, w.top + 30); }
+    }
+
+    // Discharge pipes: shell, then dots
+    for (const w of wells) {
+      ctx.beginPath(); ctx.moveTo(w.x, PUMP_TOP + 4); ctx.lineTo(w.x, w.row); ctx.lineTo(PIPE_END, w.row);
+      ctx.lineJoin = 'miter';
+      ctx.strokeStyle = colors.line; ctx.lineWidth = w.pipe + 7; ctx.stroke();
+      ctx.strokeStyle = colors.vessel; ctx.lineWidth = w.pipe; ctx.stroke();
+      // open pipe end
+      ctx.strokeStyle = colors['steel-dark']; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(PIPE_END - 2, w.row - w.pipe / 2 - 6); ctx.lineTo(PIPE_END - 2, w.row + w.pipe / 2 + 6); ctx.stroke();
+    }
+    for (const w of wells) {
+      for (const d of w.dots) {
+        const p = posAt(w, d.s, d.off);
+        if (p.y > w.local && p.y > PUMP_TOP) continue;   // still inside the standing water in the casing
+        dot(p.x, p.y, colors.water);
+      }
+    }
+
+    // Outflow: a stream whose width follows the flow, plus the dots themselves
+    for (const w of wells) {
+      if (w.flow > 0.05) {
+        const sp = 110 + 22 * w.flow + 15, g = 520;
+        ctx.beginPath();
+        for (let t = 0; t <= 0.9; t += 0.03) {
+          const x = PIPE_END + sp * t, y = w.row + 0.5 * g * t * t;
+          t ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+          if (x > W + 10) break;
+        }
+        ctx.strokeStyle = colors.water; ctx.globalAlpha = 0.3; ctx.lineCap = 'round';
+        ctx.lineWidth = Math.min(w.pipe - 2, 2 + 1.9 * w.flow); ctx.stroke();
+        ctx.globalAlpha = 1; ctx.lineCap = 'butt';
+      }
+    }
+    for (const j of jets) {
+      ctx.globalAlpha = Math.max(0, 1 - (j.x - PIPE_END) / (W - PIPE_END + 20));
+      dot(j.x, j.y, colors.water);
+    }
+    ctx.globalAlpha = 1;
+
+    // Inline flow meters and outlet labels
+    for (let i = 0; i < 4; i++) {
+      const w = wells[i];
+      drawMeter(METER_X, w.row, 19, w.flow);
+      ctx.fillStyle = colors.fg; ctx.font = '600 13px "Barlow Condensed", sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText('WELL ' + (i + 1), METER_X + 28, w.row - 15);
+      ctx.fillStyle = w.flow > 0.05 ? colors.water : (w.dry ? colors.accent : colors.muted);
+      ctx.font = '500 13px "IBM Plex Mono", monospace';
+      ctx.fillText(w.flow > 0.05 ? w.flow.toFixed(1) + ' L/s' : (w.dry ? 'dry' : 'off'), METER_X + 82, w.row - 15);
+    }
+    ctx.fillStyle = colors.muted; ctx.font = '600 12px "Barlow Condensed", sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('FLOW METERS, L/S', METER_X, 24);
+
+    // Pump housings on the wellheads
+    for (let i = 0; i < 4; i++) {
+      const w = wells[i], hw = w.housing, hx = w.x - hw / 2, hy = PUMP_TOP, hh = GROUND - PUMP_TOP;
+      const edge = !w.on ? colors.closed : w.dry ? colors.accent : colors['steel-dark'];
+      ctx.fillStyle = colors.panel; ctx.strokeStyle = edge; ctx.lineWidth = 3;
+      roundRect(hx, hy, hw, hh - 2, 5); ctx.fill(); ctx.stroke();
+      // impeller that spins while the pump runs
+      const cx = w.x, cy = hy + hh / 2 - 1, r = w.large ? 15 : 11;
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.stroke();
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(w.spin);
+      ctx.fillStyle = w.on && !w.dry ? colors.water : edge;
+      for (let b = 0; b < 4; b++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.ellipse(r * 0.45, 0, r * 0.45, r * 0.18, 0, 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+      // well number badge
+      ctx.fillStyle = edge; roundRect(hx - 12, hy - 10, 22, 20, 4); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.font = '600 14px "Barlow Condensed", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(i + 1), hx - 1, hy + 1); ctx.textBaseline = 'alphabetic';
+    }
+    ctx.fillStyle = colors.muted; ctx.font = '600 13px "Barlow Condensed", sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('GROUND', 14, GROUND - 10);
+  }
+
+  // DOM readouts
+  const sw = [0, 1, 2, 3].map(i => document.getElementById('sw' + i));
+  const st = [0, 1, 2, 3].map(i => document.getElementById('st' + i));
+  const rLevel = document.getElementById('rLevel'), rTotal = document.getElementById('rTotal');
+  const vLevel = document.getElementById('vLevel'), vLevelNow = document.getElementById('vLevelNow');
+  function updateDom() {
+    let total = 0;
+    wells.forEach((w, i) => {
+      total += w.flow;
+      sw[i].setAttribute('aria-pressed', String(w.on)); sw[i].textContent = w.on ? 'On' : 'Off';
+      let msg, cls = '';
+      if (!w.on) msg = 'Off';
+      else if (w.dry) { msg = 'Dry, no water'; cls = 'dry'; }
+      else if (w.flow < w.cap - 0.05) { msg = `${w.flow.toFixed(1)} of ${w.cap} L/s`; cls = 'on'; }
+      else { msg = `${w.flow.toFixed(1)} L/s, full`; cls = 'on'; }
+      st[i].textContent = msg; st[i].className = 'pump-status ' + cls;
+    });
+    const now = Math.round(pctAt(table)), tgt = Number(levelEl.value);
+    rLevel.textContent = now + '%';
+    rTotal.textContent = total.toFixed(1) + ' L/s';
+    vLevel.textContent = tgt + '%';
+    vLevelNow.textContent = now === tgt ? 'Settled at ' + now + '%' : (now < tgt ? 'Rising, now ' : 'Falling, now ') + now + '%';
+  }
+
+  let last = performance.now(), domTick = 0;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!paused) step(dt);
+    draw();
+    if ((domTick += dt) > 0.15) { updateDom(); domTick = 0; }
+    requestAnimationFrame(frame);
+  }
+
+  function togglePump(i) { wells[i].on = !wells[i].on; markPreset(null); updateDom(); }
+  sw.forEach((b, i) => b.addEventListener('click', () => togglePump(i)));
+  // tapping a pump housing on the diagram also switches it
+  cv.addEventListener('click', e => {
+    const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * W / r.width, y = (e.clientY - r.top) * H / r.height;
+    wells.forEach((w, i) => { if (Math.abs(x - w.x) < w.housing / 2 + 12 && y > PUMP_TOP - 12 && y < GROUND + 6) togglePump(i); });
+  });
+  document.getElementById('pause').addEventListener('click', e => {
+    paused = !paused; e.target.textContent = paused ? 'Resume' : 'Pause';
+  });
+  levelEl.addEventListener('input', () => { markPreset(null); updateDom(); });
+
+  // Scenarios: each sets the controls; the water table then moves slowly to the new level
+  const PRESETS = {
+    wet:     { level: 90, on: [1, 1, 1, 1], note: '<b>Wet season.</b> The water table is high, well above every intake, so all four pumps run at full rate: 4 L/s for the small pumps and 10 L/s for the large ones.' },
+    dry:     { level: 64, on: [1, 1, 1, 1], note: '<b>Dry season.</b> The water table drops into the shallow intakes. The shallow wells slow down, and the large shallow pump loses the bigger share of its flow because it pulls the water down further around itself. The deep wells don\'t notice.' },
+    drought: { level: 30, on: [1, 1, 1, 1], note: '<b>Drought.</b> The water table is below the shallow intakes, so both shallow wells run dry even though their pumps are on. Only the deep wells still deliver.' },
+    severe:  { level: 8,  on: [1, 1, 1, 1], note: '<b>Severe drought.</b> The water table sinks into the deep intakes. Both deep wells slow to a trickle, and the large pump loses the bigger share of its flow because it pulls its own well down harder. Lower the water table a little more and they run dry too.' },
+    recover: { level: 75, on: [0, 0, 0, 0], note: '<b>Pumps off, recovering.</b> Every pump is off and the water table climbs back. Switch the pumps on one at a time to compare their flows.' },
+  };
+  const presetBtns = [...document.querySelectorAll('[data-preset]')];
+  const presetNote = document.getElementById('presetNote');
+  const presetSelect = document.getElementById('presetSelect');
+  function applyPreset(key) {
+    const pr = PRESETS[key];
+    levelEl.value = pr.level;
+    pr.on.forEach((v, i) => wells[i].on = !!v);
+    markPreset(key);
+    updateDom();
+  }
+  function markPreset(key) {
+    presetBtns.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === key)));
+    presetSelect.value = key || 'custom';
+    presetNote.innerHTML = key ? PRESETS[key].note : 'Custom settings. Pick a scenario above to reset the controls.';
+  }
+  presetSelect.addEventListener('change', () => applyPreset(presetSelect.value));
+  presetBtns.forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.preset)));
+  markPreset('wet');
+
+  Analog.showMode({ show: document.getElementById('show'), button: document.getElementById('full') });
+  Analog.fitDiagram({ canvas: cv, stage: document.getElementById('stage'), hud: document.getElementById('hud'), width: W });
+
+  // Open in a working state: pre-run so the pipes are already flowing
+  for (let t = 0; t < 8; t += 1 / 60) step(1 / 60);
+  updateDom();
+  requestAnimationFrame(frame);
+})();
+</script>

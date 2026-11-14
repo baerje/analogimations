@@ -8,6 +8,13 @@
       "short_name": "Vessel Mixer",
       "blurb": "Three sources push colored particles into a vessel at different pressures. See which ones get in, how they mix, and what leaves through the outlet.",
       "tags": ["pressure", "flow", "mixing"]
+    },
+    {
+      "id": "aquifer-wells",
+      "title": "Aquifer Wells",
+      "short_name": "Aquifer Wells",
+      "blurb": "Four wells, shallow and deep, with small and large pumps, draw from one aquifer. Raise or lower the water table and see which wells keep flowing and which run dry.",
+      "tags": ["groundwater", "flow", "pumps"]
     }
   ]
 }
